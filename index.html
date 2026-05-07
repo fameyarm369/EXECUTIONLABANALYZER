@@ -1,0 +1,1443 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black">
+<meta name="mobile-web-app-capable" content="yes">
+    <link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#E24B4A">
+  <title>Execution Lab — Student Analyzer</title>
+  <link rel="manifest" href="manifest.json">
+  <meta name="theme-color" content="#E24B4A">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Find out what's actually holding you back. 8 questions. Brutally honest results.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Syne:wght@400;600;700;800&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
+  <style>
+    /* ===== DESIGN TOKENS ===== */
+    :root {
+      --red: #E24B4A;
+      --red-dark: #b83838;
+      --red-glow: rgba(226,75,74,0.35);
+      --black: #0a0a0a;
+      --off-black: #111111;
+      --card: #161616;
+      --card2: #1c1c1c;
+      --border: rgba(255,255,255,0.07);
+      --text: #f0ece4;
+      --muted: #6b6660;
+      --muted2: #9e9890;
+      --gold: #d4a84b;
+      --gold-light: #f0c96a;
+      --green: #3ecf6e;
+      --ff-display: 'Bebas Neue', sans-serif;
+      --ff-head: 'Syne', sans-serif;
+      --ff-body: 'DM Sans', sans-serif;
+      --r: 12px;
+      --r-lg: 20px;
+      --transition: cubic-bezier(0.22, 1, 0.36, 1);
+    }
+
+    /* ===== RESET ===== */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { scroll-behavior: smooth; }
+    body {
+      background: var(--black);
+      color: var(--text);
+      font-family: var(--ff-body);
+      font-size: 16px;
+      line-height: 1.6;
+      min-height: 100vh;
+      overflow-x: hidden;
+    }
+
+    /* ===== NOISE TEXTURE OVERLAY ===== */
+    body::before {
+      content: '';
+      position: fixed;
+      inset: 0;
+      background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noise'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noise)' opacity='0.04'/%3E%3C/svg%3E");
+      pointer-events: none;
+      z-index: 9999;
+      opacity: 0.4;
+    }
+
+    /* ===== APP CONTAINER ===== */
+    #app {
+      max-width: 680px;
+      margin: 0 auto;
+      padding: 0 20px 80px;
+      position: relative;
+    }
+
+    /* ===== SCREENS ===== */
+    .screen { display: none; opacity: 0; transform: translateY(20px); transition: opacity 0.5s var(--transition), transform 0.5s var(--transition); }
+    .screen.active { display: block; opacity: 1; transform: translateY(0); }
+
+    /* ===== PROGRESS BAR ===== */
+    #progress-bar-wrap {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      height: 3px;
+      background: rgba(255,255,255,0.05);
+      z-index: 100;
+    }
+    #progress-bar {
+      height: 100%;
+      background: var(--red);
+      width: 0%;
+      transition: width 0.6s var(--transition);
+      box-shadow: 0 0 12px var(--red-glow);
+    }
+
+    /* ===== TOP BAR ===== */
+    #topbar {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 28px 0 0;
+      position: fixed;
+      top: 0; left: 50%; transform: translateX(-50%);
+      width: 100%; max-width: 680px;
+      padding: 16px 20px 12px;
+      background: rgba(10,10,10,0.92);
+      backdrop-filter: blur(20px);
+      z-index: 90;
+      border-bottom: 1px solid var(--border);
+      display: none;
+    }
+    #topbar.visible { display: flex; }
+    .logo-sm {
+      font-family: var(--ff-display);
+      font-size: 20px;
+      letter-spacing: 2px;
+      color: var(--red);
+    }
+    .q-counter {
+      font-family: var(--ff-head);
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--muted2);
+      letter-spacing: 1px;
+      text-transform: uppercase;
+    }
+
+    /* ===== HERO / LANDING ===== */
+    #screen-intro {
+      padding-top: 60px;
+    }
+
+    .intro-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      background: rgba(226,75,74,0.12);
+      border: 1px solid rgba(226,75,74,0.3);
+      border-radius: 100px;
+      padding: 6px 16px;
+      font-size: 12px;
+      font-weight: 600;
+      font-family: var(--ff-head);
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: var(--red);
+      margin-bottom: 32px;
+      animation: fadeUp 0.6s var(--transition) both;
+    }
+    .intro-badge .dot {
+      width: 6px; height: 6px;
+      background: var(--red);
+      border-radius: 50%;
+      animation: pulse 2s infinite;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.5; transform: scale(0.7); }
+    }
+
+    .intro-headline {
+      font-family: var(--ff-display);
+      font-size: clamp(56px, 13vw, 96px);
+      line-height: 0.92;
+      letter-spacing: 2px;
+      margin-bottom: 8px;
+      animation: fadeUp 0.6s 0.1s var(--transition) both;
+    }
+    .intro-headline .accent { color: var(--red); }
+    .intro-headline .line2 { display: block; color: rgba(240,236,228,0.18); }
+
+    .intro-sub {
+      font-size: 17px;
+      color: var(--muted2);
+      font-weight: 300;
+      margin-bottom: 40px;
+      max-width: 480px;
+      line-height: 1.7;
+      animation: fadeUp 0.6s 0.2s var(--transition) both;
+    }
+    .intro-sub strong { color: var(--text); font-weight: 500; }
+
+    .stats-row {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 44px;
+      animation: fadeUp 0.6s 0.3s var(--transition) both;
+      flex-wrap: wrap;
+    }
+    .stat-pill {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 100px;
+      padding: 10px 18px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      font-size: 13px;
+      font-family: var(--ff-head);
+      font-weight: 600;
+    }
+    .stat-pill .s-num { color: var(--red); }
+
+    .start-cta {
+      animation: fadeUp 0.6s 0.4s var(--transition) both;
+    }
+    .btn-primary {
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+      background: var(--red);
+      color: #fff;
+      font-family: var(--ff-head);
+      font-weight: 700;
+      font-size: 16px;
+      letter-spacing: 0.5px;
+      padding: 18px 36px;
+      border-radius: var(--r);
+      border: none;
+      cursor: pointer;
+      transition: all 0.3s var(--transition);
+      position: relative;
+      overflow: hidden;
+    }
+    .btn-primary::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, rgba(255,255,255,0.15) 0%, transparent 60%);
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+    .btn-primary:hover { background: var(--red-dark); transform: translateY(-2px); box-shadow: 0 12px 40px var(--red-glow); }
+    .btn-primary:hover::before { opacity: 1; }
+    .btn-primary:active { transform: translateY(0); }
+    .btn-arrow { font-size: 18px; transition: transform 0.3s; }
+    .btn-primary:hover .btn-arrow { transform: translateX(4px); }
+
+    .trust-note {
+      margin-top: 20px;
+      font-size: 13px;
+      color: var(--muted);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .trust-note svg { opacity: 0.5; flex-shrink: 0; }
+
+    /* Diagonal accent line */
+    .intro-decoration {
+      position: absolute;
+      right: -20px;
+      top: 80px;
+      width: 260px;
+      height: 260px;
+      background: radial-gradient(circle, rgba(226,75,74,0.12) 0%, transparent 70%);
+      pointer-events: none;
+      animation: fadeUp 1s 0.5s var(--transition) both;
+    }
+
+    /* ===== QUESTION SCREEN ===== */
+    #screen-quiz {
+      padding-top: 90px;
+    }
+
+    .q-wrap {
+      display: none;
+    }
+    .q-wrap.active {
+      display: block;
+      animation: fadeUp 0.5s var(--transition) both;
+    }
+
+    .q-pillar {
+      font-size: 11px;
+      font-family: var(--ff-head);
+      font-weight: 700;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--red);
+      margin-bottom: 16px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .q-pillar::before {
+      content: '';
+      display: block;
+      width: 20px; height: 2px;
+      background: var(--red);
+      border-radius: 2px;
+    }
+
+    .q-text {
+      font-family: var(--ff-head);
+      font-size: clamp(22px, 5vw, 30px);
+      font-weight: 800;
+      line-height: 1.25;
+      margin-bottom: 36px;
+      color: var(--text);
+    }
+
+    .options-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .option-btn {
+      background: var(--card);
+      border: 1.5px solid var(--border);
+      border-radius: var(--r);
+      padding: 18px 22px;
+      text-align: left;
+      cursor: pointer;
+      transition: all 0.25s var(--transition);
+      display: flex;
+      align-items: flex-start;
+      gap: 14px;
+      color: var(--text);
+      font-family: var(--ff-body);
+      font-size: 15px;
+      line-height: 1.5;
+      position: relative;
+      overflow: hidden;
+    }
+    .option-btn::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, rgba(226,75,74,0.06) 0%, transparent 100%);
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+    .option-letter {
+      width: 28px; height: 28px;
+      min-width: 28px;
+      background: rgba(255,255,255,0.06);
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-family: var(--ff-head);
+      font-weight: 700;
+      font-size: 12px;
+      color: var(--muted2);
+      letter-spacing: 0;
+      transition: all 0.25s;
+    }
+    .option-text { flex: 1; padding-top: 3px; }
+
+    .option-btn:hover {
+      border-color: rgba(226,75,74,0.4);
+      background: var(--card2);
+      transform: translateX(4px);
+    }
+    .option-btn:hover::before { opacity: 1; }
+    .option-btn:hover .option-letter {
+      background: rgba(226,75,74,0.2);
+      color: var(--red);
+    }
+
+    .option-btn.selected {
+      border-color: var(--red);
+      background: rgba(226,75,74,0.1);
+    }
+    .option-btn.selected .option-letter {
+      background: var(--red);
+      color: #fff;
+    }
+
+    .q-footer {
+      margin-top: 36px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .q-dots {
+      display: flex;
+      gap: 6px;
+    }
+    .q-dot {
+      width: 6px; height: 6px;
+      border-radius: 50%;
+      background: var(--border);
+      transition: all 0.3s;
+    }
+    .q-dot.done { background: var(--red); }
+    .q-dot.current { background: var(--red); width: 18px; border-radius: 3px; }
+
+    .btn-next {
+      display: inline-flex;
+      align-items: center;
+      gap: 10px;
+      background: var(--card2);
+      border: 1.5px solid var(--border);
+      color: var(--muted);
+      font-family: var(--ff-head);
+      font-weight: 700;
+      font-size: 14px;
+      padding: 12px 24px;
+      border-radius: var(--r);
+      cursor: pointer;
+      transition: all 0.3s var(--transition);
+      pointer-events: none;
+      opacity: 0.4;
+    }
+    .btn-next.enabled {
+      pointer-events: all;
+      opacity: 1;
+      color: var(--text);
+      border-color: rgba(226,75,74,0.4);
+    }
+    .btn-next.enabled:hover {
+      background: var(--red);
+      border-color: var(--red);
+      color: #fff;
+      transform: translateY(-1px);
+      box-shadow: 0 8px 24px var(--red-glow);
+    }
+
+    /* ===== LOADING SCREEN ===== */
+    #screen-loading {
+      padding-top: 100px;
+      text-align: center;
+    }
+    .loading-label {
+      font-family: var(--ff-display);
+      font-size: 48px;
+      letter-spacing: 3px;
+      margin-bottom: 12px;
+    }
+    .loading-sub {
+      font-size: 14px;
+      color: var(--muted2);
+      margin-bottom: 60px;
+    }
+    .loading-bar-wrap {
+      width: 100%;
+      max-width: 320px;
+      height: 4px;
+      background: var(--card);
+      border-radius: 4px;
+      margin: 0 auto 24px;
+      overflow: hidden;
+    }
+    .loading-bar {
+      height: 100%;
+      background: var(--red);
+      width: 0%;
+      border-radius: 4px;
+      box-shadow: 0 0 16px var(--red-glow);
+      transition: width 0.4s var(--transition);
+    }
+    .loading-status {
+      font-size: 13px;
+      color: var(--muted);
+      height: 20px;
+      font-style: italic;
+    }
+    .loading-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 10px;
+      max-width: 400px;
+      margin: 48px auto 0;
+    }
+    .loading-chip {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--r);
+      padding: 14px 16px;
+      text-align: left;
+      font-size: 13px;
+      color: var(--muted);
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      opacity: 0;
+      transition: opacity 0.4s, border-color 0.4s;
+    }
+    .loading-chip.done {
+      opacity: 1;
+      border-color: rgba(62, 207, 110, 0.3);
+      color: var(--text);
+    }
+    .loading-chip .chip-icon { font-size: 16px; }
+
+    /* ===== RESULT SCREEN ===== */
+    #screen-result {
+      padding-top: 80px;
+    }
+
+    .result-eyebrow {
+      font-family: var(--ff-head);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 2px;
+      text-transform: uppercase;
+      color: var(--muted2);
+      margin-bottom: 8px;
+      animation: fadeUp 0.5s 0.1s both;
+    }
+
+    .result-archetype {
+      font-family: var(--ff-display);
+      font-size: clamp(52px, 13vw, 88px);
+      letter-spacing: 3px;
+      line-height: 0.9;
+      color: var(--red);
+      margin-bottom: 24px;
+      animation: fadeUp 0.5s 0.15s both;
+    }
+
+    .result-tagline {
+      font-size: 18px;
+      font-weight: 500;
+      line-height: 1.55;
+      color: var(--text);
+      margin-bottom: 40px;
+      max-width: 500px;
+      animation: fadeUp 0.5s 0.2s both;
+    }
+
+    .result-cards {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 32px;
+      animation: fadeUp 0.5s 0.25s both;
+    }
+    @media(max-width: 480px) { .result-cards { grid-template-columns: 1fr; } }
+
+    .result-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--r);
+      padding: 20px;
+    }
+    .rc-label {
+      font-size: 10px;
+      font-family: var(--ff-head);
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 8px;
+    }
+    .rc-value {
+      font-family: var(--ff-head);
+      font-size: 16px;
+      font-weight: 700;
+      color: var(--text);
+      line-height: 1.4;
+    }
+    .rc-value.danger { color: #ff6b6b; }
+    .rc-value.strength { color: var(--green); }
+    .rc-value.gold { color: var(--gold); }
+
+    .result-truth {
+      background: rgba(226,75,74,0.08);
+      border: 1px solid rgba(226,75,74,0.2);
+      border-left: 3px solid var(--red);
+      border-radius: var(--r);
+      padding: 20px 22px;
+      margin-bottom: 32px;
+      font-size: 15px;
+      line-height: 1.7;
+      color: var(--text);
+      animation: fadeUp 0.5s 0.3s both;
+    }
+    .result-truth .truth-label {
+      font-size: 10px;
+      font-family: var(--ff-head);
+      font-weight: 700;
+      letter-spacing: 1.5px;
+      text-transform: uppercase;
+      color: var(--red);
+      margin-bottom: 8px;
+    }
+
+    .score-visual {
+      margin-bottom: 36px;
+      animation: fadeUp 0.5s 0.35s both;
+    }
+    .score-bars {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .score-bar-row {
+      display: grid;
+      grid-template-columns: 120px 1fr 40px;
+      gap: 12px;
+      align-items: center;
+      font-size: 13px;
+    }
+    .score-bar-label { color: var(--muted2); font-family: var(--ff-head); font-size: 12px; font-weight: 600; }
+    .score-bar-track {
+      height: 6px;
+      background: var(--card);
+      border-radius: 6px;
+      overflow: hidden;
+    }
+    .score-bar-fill {
+      height: 100%;
+      border-radius: 6px;
+      background: var(--red);
+      transition: width 1.2s var(--transition);
+      width: 0%;
+    }
+    .score-bar-fill.med { background: var(--gold); }
+    .score-bar-fill.hi { background: var(--green); }
+    .score-bar-pct { color: var(--muted2); font-size: 12px; font-family: var(--ff-head); font-weight: 600; text-align: right; }
+
+    .result-recs {
+      margin-bottom: 40px;
+      animation: fadeUp 0.5s 0.4s both;
+    }
+    .recs-title {
+      font-family: var(--ff-head);
+      font-size: 14px;
+      font-weight: 700;
+      letter-spacing: 0.5px;
+      color: var(--muted2);
+      text-transform: uppercase;
+      margin-bottom: 16px;
+    }
+    .rec-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 14px;
+      padding: 16px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--r);
+      margin-bottom: 10px;
+    }
+    .rec-num {
+      width: 28px; height: 28px;
+      min-width: 28px;
+      background: rgba(226,75,74,0.15);
+      border-radius: 6px;
+      display: flex; align-items: center; justify-content: center;
+      font-family: var(--ff-head);
+      font-weight: 800;
+      font-size: 13px;
+      color: var(--red);
+    }
+    .rec-text { font-size: 14px; color: var(--text); line-height: 1.55; }
+
+    /* ===== CTA SECTION ===== */
+    .cta-section {
+      background: var(--card);
+      border: 1px solid rgba(226,75,74,0.25);
+      border-radius: var(--r-lg);
+      padding: 36px 28px;
+      text-align: center;
+      position: relative;
+      overflow: hidden;
+      animation: fadeUp 0.5s 0.45s both;
+      margin-bottom: 40px;
+    }
+    .cta-section::before {
+      content: '';
+      position: absolute;
+      top: -60px; left: 50%; transform: translateX(-50%);
+      width: 300px; height: 200px;
+      background: radial-gradient(ellipse, rgba(226,75,74,0.18) 0%, transparent 70%);
+      pointer-events: none;
+    }
+    .cta-headline {
+      font-family: var(--ff-display);
+      font-size: clamp(36px, 8vw, 56px);
+      letter-spacing: 2px;
+      line-height: 1;
+      margin-bottom: 14px;
+      position: relative;
+    }
+    .cta-sub {
+      font-size: 15px;
+      color: var(--muted2);
+      margin-bottom: 28px;
+      line-height: 1.6;
+    }
+    .btn-cta {
+      display: inline-flex;
+      align-items: center;
+      gap: 12px;
+      background: var(--red);
+      color: #fff;
+      font-family: var(--ff-head);
+      font-weight: 800;
+      font-size: 17px;
+      padding: 20px 40px;
+      border-radius: var(--r);
+      border: none;
+      cursor: pointer;
+      width: 100%;
+      justify-content: center;
+      transition: all 0.3s var(--transition);
+      position: relative;
+      overflow: hidden;
+      letter-spacing: 0.3px;
+    }
+    .btn-cta:hover { background: var(--red-dark); transform: translateY(-2px); box-shadow: 0 16px 48px var(--red-glow); }
+    .guarantee-note {
+      margin-top: 14px;
+      font-size: 12px;
+      color: var(--muted);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+    }
+
+    /* ===== SHARE SECTION ===== */
+    .share-section {
+      animation: fadeUp 0.5s 0.5s both;
+    }
+    .share-title {
+      font-family: var(--ff-head);
+      font-size: 13px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      text-transform: uppercase;
+      color: var(--muted);
+      text-align: center;
+      margin-bottom: 16px;
+    }
+    .share-btns {
+      display: flex;
+      gap: 10px;
+      flex-wrap: wrap;
+    }
+    .share-btn {
+      flex: 1;
+      min-width: 100px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: var(--r);
+      padding: 14px 16px;
+      font-family: var(--ff-head);
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text);
+      cursor: pointer;
+      transition: all 0.25s;
+    }
+    .share-btn:hover { background: var(--card2); border-color: rgba(255,255,255,0.15); transform: translateY(-2px); }
+    .share-btn.wa { color: #25D366; }
+    .share-btn.ig { color: #E1306C; }
+    .share-btn.copy { color: var(--gold); }
+
+    /* ===== ANIMATIONS ===== */
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(24px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+
+    /* ===== RESPONSIVE ===== */
+    @media(max-width: 520px) {
+      .intro-headline { font-size: 52px; }
+      .stats-row { gap: 8px; }
+      .stat-pill { font-size: 12px; padding: 8px 14px; }
+      .q-text { font-size: 20px; }
+      .result-archetype { font-size: 52px; }
+    }
+
+    /* ===== SCROLLBAR ===== */
+    ::-webkit-scrollbar { width: 4px; }
+    ::-webkit-scrollbar-track { background: var(--black); }
+    ::-webkit-scrollbar-thumb { background: var(--card2); border-radius: 4px; }
+
+    /* ===== TOAST ===== */
+    #toast {
+      position: fixed;
+      bottom: 32px;
+      left: 50%;
+      transform: translateX(-50%) translateY(100px);
+      background: var(--green);
+      color: #000;
+      font-family: var(--ff-head);
+      font-weight: 700;
+      font-size: 14px;
+      padding: 12px 24px;
+      border-radius: 100px;
+      transition: transform 0.4s var(--transition);
+      z-index: 9000;
+      white-space: nowrap;
+    }
+    #toast.show { transform: translateX(-50%) translateY(0); }
+  </style>
+</head>
+<body>
+
+<div id="progress-bar-wrap">
+  <div id="progress-bar"></div>
+</div>
+
+<div id="topbar">
+  <span class="logo-sm">EXECUTION LAB</span>
+  <span class="q-counter" id="q-counter">Q 1 / 8</span>
+</div>
+
+<div id="app">
+
+  <!-- ===== INTRO SCREEN ===== -->
+  <div id="screen-intro" class="screen active">
+    <div class="intro-decoration"></div>
+
+    <div class="intro-badge">
+      <span class="dot"></span>
+      Free Diagnostic · 2 min
+    </div>
+
+    <h1 class="intro-headline">
+      <span class="accent">WHAT'S</span><br>
+      ACTUALLY<br>
+      <span class="line2">HOLDING YOU</span><br>
+      BACK?
+    </h1>
+
+    <p class="intro-sub">
+      8 questions. <strong>Brutally honest results.</strong><br>
+      Find your hidden block — and your hidden strength.
+    </p>
+
+    <div class="stats-row">
+      <div class="stat-pill"><span class="s-num">47K+</span> students analyzed</div>
+      <div class="stat-pill"><span class="s-num">93%</span> said "this is exactly me"</div>
+      <div class="stat-pill"><span class="s-num">8</span> questions only</div>
+    </div>
+
+    <div class="start-cta">
+      <button class="btn-primary" onclick="startQuiz()">
+        Find My Archetype
+        <span class="btn-arrow">→</span>
+      </button>
+      <div class="trust-note">
+        <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><path d="M7 1L8.8 5.3H13L9.6 8.1L10.9 12.5L7 9.7L3.1 12.5L4.4 8.1L1 5.3H5.2L7 1Z" fill="currentColor"/></svg>
+        No signup required. Results in 2 minutes.
+      </div>
+    </div>
+  </div>
+
+  <!-- ===== QUIZ SCREEN ===== -->
+  <div id="screen-quiz" class="screen">
+    <div id="questions-container"></div>
+
+    <div class="q-footer">
+      <div class="q-dots" id="q-dots"></div>
+      <button class="btn-next" id="btn-next" onclick="nextQuestion()">
+        Next <span>→</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- ===== LOADING SCREEN ===== -->
+  <div id="screen-loading" class="screen">
+    <div class="loading-label">ANALYZING<span style="color:var(--red)">.</span></div>
+    <div class="loading-sub">Building your personal growth map...</div>
+    <div class="loading-bar-wrap">
+      <div class="loading-bar" id="loading-bar"></div>
+    </div>
+    <div class="loading-status" id="loading-status">Reading your patterns...</div>
+    <div class="loading-grid" id="loading-grid">
+      <div class="loading-chip" id="chip-1"><span class="chip-icon">🔥</span> Focus Level</div>
+      <div class="loading-chip" id="chip-2"><span class="chip-icon">⚡</span> Discipline Score</div>
+      <div class="loading-chip" id="chip-3"><span class="chip-icon">🎯</span> Clarity Index</div>
+      <div class="loading-chip" id="chip-4"><span class="chip-icon">💬</span> Confidence Map</div>
+      <div class="loading-chip" id="chip-5"><span class="chip-icon">💰</span> Skill Potential</div>
+      <div class="loading-chip" id="chip-6"><span class="chip-icon">🧬</span> Archetype Match</div>
+    </div>
+  </div>
+
+  <!-- ===== RESULT SCREEN ===== -->
+  <div id="screen-result" class="screen">
+    <div id="result-content"></div>
+  </div>
+
+</div>
+
+<div id="toast">✓ Copied to clipboard!</div>
+
+<script>
+// ===================================================
+// QUIZ DATA
+// ===================================================
+
+const questions = [
+  {
+    id: 1,
+    pillar: "Discipline",
+    text: "You make a plan to study for 2 hours tonight. What actually happens?",
+    options: [
+      { label: "A", text: "I stick to it — I follow through every time.", score: 4 },
+      { label: "B", text: "I start... then get distracted after 20 minutes.", score: 2 },
+      { label: "C", text: "I open my phone \"just for 5 minutes\" and it's been 2 hours.", score: 1 },
+      { label: "D", text: "I don't even start. I just feel guilty about it.", score: 0 }
+    ]
+  },
+  {
+    id: 2,
+    pillar: "Focus / Distraction",
+    text: "Your phone is nearby while you study. What's your honest reality?",
+    options: [
+      { label: "A", text: "Phone is in another room. I don't touch it.", score: 4 },
+      { label: "B", text: "It's face-down, but I still check it every 10 mins.", score: 2 },
+      { label: "C", text: "I get 4 notifications and I've answered all of them.", score: 1 },
+      { label: "D", text: "I'm studying on my phone... studying AND scrolling.", score: 0 }
+    ]
+  },
+  {
+    id: 3,
+    pillar: "Consistency",
+    text: "You started something new — a course, a skill, a routine. Where are you now?",
+    options: [
+      { label: "A", text: "Still going strong. I rarely break streaks.", score: 4 },
+      { label: "B", text: "I was consistent for 2 weeks, then life happened.", score: 2 },
+      { label: "C", text: "I got excited on Day 1. Day 7 was my last day.", score: 1 },
+      { label: "D", text: "I haven't actually started yet. Still planning.", score: 0 }
+    ]
+  },
+  {
+    id: 4,
+    pillar: "English Confidence",
+    text: "You know the answer in class — but the teacher asks you to explain in English. What do you feel?",
+    options: [
+      { label: "A", text: "Confident. I speak clearly and people understand me.", score: 4 },
+      { label: "B", text: "I know what to say but my words come out wrong.", score: 2 },
+      { label: "C", text: "I freeze. I know the answer but I stay quiet.", score: 1 },
+      { label: "D", text: "I pray the teacher doesn't call on me.", score: 0 }
+    ]
+  },
+  {
+    id: 5,
+    pillar: "Income Skills",
+    text: "Be honest — if college or NEET exams disappeared tomorrow, what skill do you have to earn money?",
+    options: [
+      { label: "A", text: "I have a real skill — design, coding, writing, sales. I can earn.", score: 4 },
+      { label: "B", text: "I have some knowledge but haven't made a rupee from it.", score: 2 },
+      { label: "C", text: "I know I should build a skill. Haven't started.", score: 1 },
+      { label: "D", text: "Nothing. I've only been studying for marks, not for life.", score: 0 }
+    ]
+  },
+  {
+    id: 6,
+    pillar: "Future Clarity",
+    text: "Where do you see yourself at age 25? How clear is your answer right now?",
+    options: [
+      { label: "A", text: "Crystal clear. I know the path, the steps, the goal.", score: 4 },
+      { label: "B", text: "I have a rough idea but lots of uncertainty.", score: 2 },
+      { label: "C", text: "I change my mind every month honestly.", score: 1 },
+      { label: "D", text: "I'm scared to even think about it. Too much pressure.", score: 0 }
+    ]
+  },
+  {
+    id: 7,
+    pillar: "Accountability",
+    text: "You missed a goal last week. What's your honest internal reaction?",
+    options: [
+      { label: "A", text: "I analyze what went wrong and fix the system.", score: 4 },
+      { label: "B", text: "I feel bad for a day, then restart.", score: 2 },
+      { label: "C", text: "I blame circumstances — exams, family, internet.", score: 1 },
+      { label: "D", text: "I convince myself that goal wasn't that important anyway.", score: 0 }
+    ]
+  },
+  {
+    id: 8,
+    pillar: "Identity / Potential",
+    text: "Deep down, which statement hits closest to home?",
+    options: [
+      { label: "A", text: "I know I'm capable. I just need the right system.", score: 4 },
+      { label: "B", text: "People around me are doing better and I don't know why.", score: 2 },
+      { label: "C", text: "I feel like I'm wasting my potential but can't stop.", score: 1 },
+      { label: "D", text: "Sometimes I wonder if I'm just not good enough.", score: 0 }
+    ]
+  }
+];
+
+// ===================================================
+// ARCHETYPES
+// ===================================================
+
+const archetypes = [
+  {
+    id: "hidden-weapon",
+    name: "THE HIDDEN\nWEAPON",
+    nameFlat: "THE HIDDEN WEAPON",
+    tagline: "You have everything it takes. You're just waiting for someone to point you in the right direction.",
+    strength: "Self-aware, determined, coachable",
+    danger: "Underestimating yourself for too long",
+    truth: "You already think better than most students around you. The problem isn't your intelligence — it's that nobody taught you how to channel it. You're a weapon that's been sitting unchambered. One system, one environment, one push — and everything changes.",
+    needs: "A proven execution system + the right tribe",
+    scoreRange: [25, 32],
+    bars: { focus: 80, discipline: 75, clarity: 70, confidence: 65, skills: 60 },
+    recs: [
+      "Install a 90-min deep work routine with phone in another room — you're one habit away from 10x output.",
+      "Start one income skill immediately (copywriting, video editing, or digital marketing) — your brain is ready.",
+      "Find an accountability group — your execution speed will 3x with the right environment.",
+      "Stop comparing. Your timeline is not their timeline. Focus on your compound interest."
+    ]
+  },
+  {
+    id: "distracted-dreamer",
+    name: "THE DISTRACTED\nDREAMER",
+    nameFlat: "THE DISTRACTED DREAMER",
+    tagline: "Big dreams. Bigger distractions. The gap between them is called execution.",
+    strength: "Creative, visionary, highly imaginative",
+    danger: "Your phone is eating your destiny daily",
+    truth: "You're not lazy. You're overstimulated. Every notification is a tiny dopamine hit that trains your brain to avoid the hard work that would actually build your life. Instagram stories take seconds. The life you want takes systems. Right now, your brain is optimized for entertainment — not execution.",
+    needs: "A digital detox protocol + dopamine reset system",
+    scoreRange: [10, 17],
+    bars: { focus: 20, discipline: 30, clarity: 40, confidence: 45, skills: 25 },
+    recs: [
+      "Delete Instagram and YouTube from your phone for 30 days. Track what changes.",
+      "Use the \"2-minute rule\" — if it takes less than 2 minutes, do it now. Build tiny wins.",
+      "Replace your phone alarm with a physical alarm and keep the phone outside the bedroom.",
+      "Join Execution Lab's focus cohort — surround yourself with people building, not scrolling."
+    ]
+  },
+  {
+    id: "silent-potential",
+    name: "THE SILENT\nPOTENTIAL",
+    nameFlat: "THE SILENT POTENTIAL",
+    tagline: "You know more than you say. Your silence is costing you opportunities every single day.",
+    strength: "Deep thinker, observant, internally motivated",
+    danger: "Fear of judgment is silencing your real voice",
+    truth: "You watch others confidently speak broken English in class and you stay quiet even though you have better ideas. That's not humility — that's fear. The world doesn't reward the most intelligent person in the room. It rewards the one who speaks up. Your silence is building a habit that will follow you into every interview, every presentation, every opportunity.",
+    needs: "English confidence system + public speaking practice environment",
+    scoreRange: [18, 24],
+    bars: { focus: 50, discipline: 55, clarity: 45, confidence: 20, skills: 35 },
+    recs: [
+      "Record yourself speaking English for 5 minutes every day. No audience. Just you and your voice.",
+      "Pick 3 YouTube channels in English you love and transcribe 5 sentences per video, then speak them aloud.",
+      "Join one online community where English is the default language — practice is the only teacher.",
+      "Sign up for Execution Lab's English Confidence Sprint — 30 days to speak without fear."
+    ]
+  },
+  {
+    id: "last-minute-warrior",
+    name: "LAST-MINUTE\nWARRIOR",
+    nameFlat: "LAST-MINUTE WARRIOR",
+    tagline: "You perform well under pressure. But you're slowly burning out what could have been greatness.",
+    strength: "High pressure performer, resourceful, intense",
+    danger: "Procrastination is disguised as strategy",
+    truth: "You've trained your brain to only activate under extreme pressure. Exam tomorrow? Suddenly you study 12 hours straight. Normal Tuesday? Can't open a single book. This isn't time management — it's stress-dependent performance. Your body is running on cortisol spikes instead of consistent discipline. You're not broken, but you're burning expensive fuel inefficiently.",
+    needs: "A consistency system that makes every day feel like exam eve",
+    scoreRange: [8, 12],
+    bars: { focus: 35, discipline: 25, clarity: 55, confidence: 50, skills: 30 },
+    recs: [
+      "Create artificial deadlines — set a \"fake exam\" every Friday to activate your pressure-performance mode.",
+      "Use the Pomodoro method: 25 min on, 5 min off. Trick your brain into short-sprint energy.",
+      "Build a \"consequence system\" with a study partner — miss a session, you owe them something.",
+      "Execution Lab's 30-Day Consistency Challenge will rewire your relationship with daily work."
+    ]
+  },
+  {
+    id: "overthinker",
+    name: "THE OVER-\nTHINKER",
+    nameFlat: "THE OVERTHINKER",
+    tagline: "You've analyzed every path. You've started none. Thinking is not execution.",
+    strength: "Strategic mind, risk-aware, detail-oriented",
+    danger: "Analysis paralysis disguised as being 'careful'",
+    truth: "You know what you should do. You've made the plan multiple times. You've watched the videos, read the articles, maybe even bought the course. But something stops you from actually starting. Here's the brutal truth: you're afraid of trying and failing. So you stay in the comfortable loop of planning. But planning without action is just expensive dreaming.",
+    needs: "A \"start small, start now\" action system — removing the pressure of perfection",
+    scoreRange: [13, 19],
+    bars: { focus: 45, discipline: 40, clarity: 30, confidence: 30, skills: 20 },
+    recs: [
+      "Use the 3-2-1 rule: count down from 3 and physically start the task before your brain says no.",
+      "Set a 15-minute 'ugly draft' timer — give yourself permission to do it badly, just to start.",
+      "Block one hour per day labeled 'execution only' — no research, no planning, only doing.",
+      "Execution Lab will give you done-for-you frameworks so you never have to plan from scratch again."
+    ]
+  },
+  {
+    id: "drifting-student",
+    name: "THE DRIFTING\nSTUDENT",
+    nameFlat: "THE DRIFTING STUDENT",
+    tagline: "Moving without direction. Working without purpose. Busy without progress.",
+    strength: "Adaptable, open to change, not yet hardwired",
+    danger: "Drift becomes permanent if ignored past 22",
+    truth: "You're doing things — attending classes, watching content, maybe even working hard. But nothing is clicking. You don't feel like you're building toward anything. The career your parents want doesn't excite you. The careers that excite you feel unrealistic. You're in the most dangerous state a student can be in: active but directionless. Effort without direction is just exhaustion.",
+    needs: "A clarity session + identity-building system + purpose map",
+    scoreRange: [0, 9],
+    bars: { focus: 30, discipline: 20, clarity: 15, confidence: 25, skills: 15 },
+    recs: [
+      "Do the \"5-year death test\": if you lived your current path for 5 years, would you be proud? If not — change now.",
+      "Write down 3 things you'd do even if you weren't paid. That intersection is your direction.",
+      "Talk to 5 people who are doing work you find interesting — on LinkedIn, in your city, anywhere.",
+      "Execution Lab's Foundation Track will help you build clarity, confidence, and a concrete 90-day plan."
+    ]
+  }
+];
+
+// ===================================================
+// STATE
+// ===================================================
+
+let currentQ = 0;
+let answers = [];
+let selectedArchetype = null;
+let selectedOptionIndex = null;
+
+// ===================================================
+// QUIZ INIT
+// ===================================================
+
+function startQuiz() {
+  showScreen('screen-quiz');
+  document.getElementById('topbar').classList.add('visible');
+  renderQuestion(0);
+  renderDots();
+}
+
+function renderDots() {
+  const c = document.getElementById('q-dots');
+  c.innerHTML = '';
+  questions.forEach((_, i) => {
+    const d = document.createElement('div');
+    d.className = 'q-dot' + (i === 0 ? ' current' : '');
+    c.appendChild(d);
+  });
+}
+
+function updateDots(qIdx) {
+  const dots = document.querySelectorAll('.q-dot');
+  dots.forEach((d, i) => {
+    d.className = 'q-dot' + (i < qIdx ? ' done' : i === qIdx ? ' current' : '');
+  });
+}
+
+function renderQuestion(idx) {
+  const q = questions[idx];
+  const container = document.getElementById('questions-container');
+  container.innerHTML = '';
+  selectedOptionIndex = null;
+
+  const wrap = document.createElement('div');
+  wrap.className = 'q-wrap active';
+  wrap.innerHTML = `
+    <div class="q-pillar">${q.pillar}</div>
+    <div class="q-text">${q.text}</div>
+    <div class="options-grid" id="opts-${idx}">
+      ${q.options.map((o, i) => `
+        <button class="option-btn" onclick="selectOption(${idx}, ${i}, this)">
+          <span class="option-letter">${o.label}</span>
+          <span class="option-text">${o.text}</span>
+        </button>
+      `).join('')}
+    </div>
+  `;
+  container.appendChild(wrap);
+
+  // Update counter & progress
+  document.getElementById('q-counter').textContent = `Q ${idx + 1} / 8`;
+  const prog = ((idx) / 8) * 100;
+  document.getElementById('progress-bar').style.width = prog + '%';
+
+  // Reset next button
+  const btn = document.getElementById('btn-next');
+  btn.className = 'btn-next';
+
+  updateDots(idx);
+}
+
+function selectOption(qIdx, optIdx, el) {
+  // Deselect all
+  document.querySelectorAll(`#opts-${qIdx} .option-btn`).forEach(b => b.classList.remove('selected'));
+  el.classList.add('selected');
+  selectedOptionIndex = optIdx;
+
+  // Enable next
+  const btn = document.getElementById('btn-next');
+  btn.className = 'btn-next enabled';
+  btn.innerHTML = currentQ === 7 ? 'See Results <span>→</span>' : 'Next <span>→</span>';
+
+  // Store answer
+  answers[qIdx] = questions[qIdx].options[optIdx].score;
+}
+
+function nextQuestion() {
+  if (selectedOptionIndex === null) return;
+
+  if (currentQ < 7) {
+    currentQ++;
+    renderQuestion(currentQ);
+  } else {
+    // Done
+    document.getElementById('progress-bar').style.width = '100%';
+    showScreen('screen-loading');
+    document.getElementById('topbar').classList.remove('visible');
+    runLoading();
+  }
+}
+
+// ===================================================
+// LOADING SEQUENCE
+// ===================================================
+
+function runLoading() {
+  const bar = document.getElementById('loading-bar');
+  const status = document.getElementById('loading-status');
+  const chips = [1,2,3,4,5,6].map(i => document.getElementById('chip-' + i));
+  const statuses = [
+    'Reading your patterns...',
+    'Mapping your discipline profile...',
+    'Analyzing focus & distraction signals...',
+    'Calculating skill potential...',
+    'Matching your archetype...',
+    'Preparing your growth plan...'
+  ];
+
+  let pct = 0;
+  let step = 0;
+
+  const interval = setInterval(() => {
+    pct += Math.random() * 18 + 8;
+    if (pct > 100) pct = 100;
+    bar.style.width = pct + '%';
+    status.textContent = statuses[Math.min(step, 5)];
+
+    if (step < 6) {
+      chips[step].classList.add('done');
+      step++;
+    }
+
+    if (pct >= 100) {
+      clearInterval(interval);
+      setTimeout(() => {
+        calculateResult();
+        showScreen('screen-result');
+      }, 600);
+    }
+  }, 340);
+}
+
+// ===================================================
+// RESULT CALCULATION
+// ===================================================
+
+function calculateResult() {
+  const total = answers.reduce((a, b) => a + (b || 0), 0);
+
+  // Find archetype by score range
+  let arch = archetypes.find(a => total >= a.scoreRange[0] && total <= a.scoreRange[1]);
+  if (!arch) {
+    // fallback: pick closest
+    arch = archetypes.reduce((prev, curr) => {
+      const pm = Math.abs(total - (prev.scoreRange[0] + prev.scoreRange[1]) / 2);
+      const cm = Math.abs(total - (curr.scoreRange[0] + curr.scoreRange[1]) / 2);
+      return cm < pm ? curr : prev;
+    });
+  }
+
+  selectedArchetype = arch;
+  renderResult(arch, total);
+}
+
+function renderResult(arch, total) {
+  const maxScore = 32;
+  const overallPct = Math.round((total / maxScore) * 100);
+
+  // Bar scores with some variance
+  const bars = arch.bars;
+
+  const content = document.getElementById('result-content');
+  content.innerHTML = `
+    <div class="result-eyebrow">Your Execution Lab Archetype</div>
+    <div class="result-archetype">${arch.name}</div>
+    <div class="result-tagline">${arch.tagline}</div>
+
+    <div class="result-cards">
+      <div class="result-card">
+        <div class="rc-label">Hidden Strength</div>
+        <div class="rc-value strength">${arch.strength}</div>
+      </div>
+      <div class="result-card">
+        <div class="rc-label">Current Danger</div>
+        <div class="rc-value danger">${arch.danger}</div>
+      </div>
+      <div class="result-card">
+        <div class="rc-label">What You Need Now</div>
+        <div class="rc-value gold">${arch.needs}</div>
+      </div>
+      <div class="result-card">
+        <div class="rc-label">Overall Score</div>
+        <div class="rc-value" style="font-size:24px;">${total} <span style="font-size:14px;color:var(--muted2)">/ 32</span></div>
+      </div>
+    </div>
+
+    <div class="result-truth">
+      <div class="truth-label">🔥 The Emotional Truth</div>
+      ${arch.truth}
+    </div>
+
+    <div class="score-visual">
+      <div class="score-bars" id="score-bars">
+        ${renderBars(bars)}
+      </div>
+    </div>
+
+    <div class="result-recs">
+      <div class="recs-title">Your 4-Step Growth Plan</div>
+      ${arch.recs.map((r, i) => `
+        <div class="rec-item">
+          <div class="rec-num">${i + 1}</div>
+          <div class="rec-text">${r}</div>
+        </div>
+      `).join('')}
+    </div>
+
+    <div class="cta-section">
+      <div class="cta-headline">FIX THIS IN<br><span style="color:var(--red)">30 DAYS.</span></div>
+      <div class="cta-sub">
+        Execution Lab is India's most intense student transformation system. 
+        Built for exactly where you are right now — as <strong>${arch.nameFlat}</strong>.
+      </div>
+       
+      <div class="guarantee-note">
+        ✦ &nbsp;Join 47,000+ students already inside &nbsp; ✦
+      </div>
+     
+   
+    </div>
+
+   
+  `;
+
+  // Animate bars after a short delay
+  setTimeout(() => {
+    animateBars(bars);
+  }, 400);
+}
+
+function renderBars(bars) {
+  const labels = [
+    { key: 'focus', label: 'Focus' },
+    { key: 'discipline', label: 'Discipline' },
+    { key: 'clarity', label: 'Clarity' },
+    { key: 'confidence', label: 'Confidence' },
+    { key: 'skills', label: 'Skill Readiness' },
+  ];
+  return labels.map(l => {
+    const v = bars[l.key];
+    const cls = v >= 60 ? 'hi' : v >= 35 ? 'med' : '';
+    return `
+      <div class="score-bar-row">
+        <div class="score-bar-label">${l.label}</div>
+        <div class="score-bar-track">
+          <div class="score-bar-fill ${cls}" data-pct="${v}" style="width:0%"></div>
+        </div>
+        <div class="score-bar-pct">${v}%</div>
+      </div>
+    `;
+  }).join('');
+}
+
+function animateBars(bars) {
+  document.querySelectorAll('.score-bar-fill').forEach(el => {
+    const pct = el.getAttribute('data-pct');
+    setTimeout(() => { el.style.width = pct + '%'; }, 100);
+  });
+}
+
+// ===================================================
+// SHARE FUNCTIONS
+// ===================================================
+
+
+
+function copyText(text) {
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(text);
+  } else {
+    const ta = document.createElement('textarea');
+    ta.value = text;
+    document.body.appendChild(ta);
+    ta.select();
+    document.execCommand('copy');
+    document.body.removeChild(ta);
+  }
+}
+
+
+
+// ===================================================
+// UTILS
+// ===================================================
+
+function showScreen(id) {
+  document.querySelectorAll('.screen').forEach(s => {
+    s.classList.remove('active');
+    s.style.display = 'none';
+  });
+  const target = document.getElementById(id);
+  target.style.display = 'block';
+  requestAnimationFrame(() => {
+    requestAnimationFrame(() => {
+      target.classList.add('active');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+  });
+}
+
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = '✓ ' + msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 3000);
+}
+<!-- KEEP THIS FUNCTION IN SCRIPT SECTION -->
+
+
+function downloadPDF() {
+  const element = document.getElementById("screen-result");
+
+  const opt = {
+    margin: 0,
+    filename: "ExecutionLab_Growth_System.pdf",
+    image: { type: "jpeg", quality: 1 },
+    html2canvas: { scale: 2, useCORS: true },
+    jsPDF: { unit: "mm", format: "a4", orientation: "portrait" }
+  };
+
+  html2pdf().set(opt).from(element).save();
+
+  showToast("Growth System Downloading...");
+}
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("sw.js")
+    .then(() => console.log("PWA Ready"))
+    .catch(err => console.log(err));
+}
+</script>
+</body>
+</html>
